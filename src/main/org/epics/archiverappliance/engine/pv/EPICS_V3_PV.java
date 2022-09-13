@@ -64,6 +64,12 @@ public class EPICS_V3_PV implements PV, ControllingPV, ConnectionListener, Monit
 
     /** Channel name. */
     private final String name;
+    
+    /** Listen to changes in value beyond 'ADEL' archive limit */
+    ARCHIVE(2 | 4),
+    
+    /** Listen to 'ADEL' and 'MDEL' */
+    VALUEANDARCHIVE(1 | 2 | 4),
 
     /**the meta info for this pv*/
     private MetaInfo totalMetaInfo = new MetaInfo();
