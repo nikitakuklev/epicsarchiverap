@@ -112,12 +112,38 @@ public class MySQLPersistence implements ConfigPersistence {
 		try {
 			List<String> typeInfoStrs = new LinkedList<String>();
 			try(Connection conn = theDataSource.getConnection()) {
-				try(PreparedStatement stmt = conn.prepareStatement("SELECT typeInfoJSON AS typeInfoJSON FROM PVTypeInfo WHERE typeInfoJSON LIKE ?;")) {
-					stmt.setString(1, "%\""+ applianceIdentity + "\"%");
-					try(ResultSet rs = stmt.executeQuery()) {
-						while (rs.next()) {
-							typeInfoStrs.add(rs.getString("typeInfoJSON"));
+				//String sql_str = "SELECT typeInfoJSON FROM PVTypeInfo WHERE typeInfoJSON LIKE ?;";
+				String sql_str = "SELECT typeInfoJSON FROM PVTypeInfo WHERE JSON_EXTRACT(typeInfoJSON,\"$.applianceIdentity\") = ?;";
+				try(PreparedStatement stmt = conn.prepareStatement(sql_str)) {
+					//stmt.setString(1, "%\""+ applianceIdentity + "\"%");
+					stmt.setString(1, applianceIdentity);
+					configlogger.debug("Executing PVTypeInfo query: " + stmt.toString());
+					boolean hadResults = stmt.execute();
+					while (true) {
+						if (hadResults) {
+							int pvCount = 0;
+							try(ResultSet rs = stmt.getResultSet()) {
+								if (rs == null) {
+									configlogger.warn("ResultSet is null but expected results???");
+								} else {
+									while (rs.next()) {
+										pvCount++;
+										typeInfoStrs.add(rs.getString("typeInfoJSON"));
+									}
+								}
+							}
+							configlogger.info(String.format("Parsed %d PVTypeInfo records", pvCount));
+						} else {
+							int updateCount = stmt.getUpdateCount();
+							if (updateCount == -1) {
+								// -1 signals no more results
+								configlogger.debug("Encountered count=-1, indicating end of results");
+								break;
+							} else {
+								configlogger.warn(String.format("Encountered unexpected update count %d while retrieving PVTypeInfo for appliance %s, ignoring", updateCount, applianceIdentity));
+							}
 						}
+						hadResults = stmt.getMoreResults();
 					}
 				}
 			}
