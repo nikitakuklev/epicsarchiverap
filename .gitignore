@@ -5,6 +5,8 @@ docs/LICENSE
 docs/api/
 stage/
 .DS_Store
+.idea
+*.iml
 *.swp
 /mts
 
