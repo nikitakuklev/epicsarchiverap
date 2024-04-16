@@ -62,9 +62,12 @@ public class MySQLPersistence implements ConfigPersistence {
             String db_string = "jdbc/" +  dbname;
 			theDataSource = (DataSource)envContext.lookup(db_string);
 			configlogger.info("Found datasource called jdbc/archappl in the java:/comp/env namespace using JDNI");
+			configlogger.info(String.format("MySQL: data source %s", theDataSource.toString()));
 
 			// test RDB connection and probe type
 			try(Connection conn = theDataSource.getConnection()) {
+				// for sqlite, YOU MUST ALSO ADD slf4j-api-1.7.36.jar to tomcat!!!
+				configlogger.info("MySQL: connection success!");
 				DatabaseMetaData meta = conn.getMetaData();
 				String name = meta.getDatabaseProductName();
 
@@ -77,8 +80,12 @@ public class MySQLPersistence implements ConfigPersistence {
 					dialect = dialect_t.MySQL;
 				}
 				configlogger.info(String.format("SQL Dialect %s", dialect.toString()));
+			} catch(Exception ex) {
+				configlogger.error("Exception MySQL connecting", ex);
+				throw ex;
 			}
 		} catch(Exception ex) {
+			configlogger.error("Exception initializing MySQLPersistence", ex);
 			throw new ConfigException("Exception initializing MySQLPersistence ", ex);
 		}
 	}
