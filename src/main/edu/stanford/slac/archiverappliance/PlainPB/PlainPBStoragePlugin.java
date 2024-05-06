@@ -487,7 +487,10 @@ public class PlainPBStoragePlugin implements StoragePlugin, ETLSource, ETLDest, 
         }
 
         boolean bulkInserted = false;
-        if (stream instanceof ETLBulkStream bulkStream) {
+        // If new partition has finer granularity than source, bulk insert will lose data!
+        // Temporarily disable
+        boolean bulkInsertAllowed = false;
+        if (stream instanceof ETLBulkStream bulkStream && bulkInsertAllowed) {
             if (backupFilesBeforeETL) {
                 bulkInserted = state.bulkAppend(pvName, context, bulkStream, append_extension, pbFileExtension);
             } else {

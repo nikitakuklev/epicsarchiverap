@@ -3,6 +3,7 @@ package org.epics.archiverappliance.etl.common;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.epics.archiverappliance.EventStream;
+import org.epics.archiverappliance.common.PartitionGranularity;
 import org.epics.archiverappliance.common.TimeUtils;
 import org.epics.archiverappliance.etl.ETLContext;
 import org.epics.archiverappliance.etl.ETLDest;
@@ -185,6 +186,11 @@ public class ETLJob implements Runnable {
                                         + infoItem.getKey());
                         }
                         long time3 = System.currentTimeMillis();
+//                        PartitionGranularity p1 = curETLSource.getPartitionGranularity();
+//                        PartitionGranularity p2 = curETLDest.getPartitionGranularity();
+//                        if (p1.compareTo(p2) > 0) {
+//                            // finer granularity in destination - don't do bulk
+//                        }
                         boolean status = curETLDest.appendToETLAppendData(pvName, stream, etlContext);
                         movedList.add(infoItem);
                         time4appendToETLAppendData = time4appendToETLAppendData + System.currentTimeMillis() - time3;
