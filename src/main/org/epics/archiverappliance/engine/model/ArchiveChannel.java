@@ -61,7 +61,7 @@ public abstract class ArchiveChannel {
     /**
      * Throttled log for NaN samples
      */
-    private static final ThrottledLogger trouble_sample_log = new ThrottledLogger(LogLevel.info, 60);
+    private static final ThrottledLogger trouble_sample_log = new ThrottledLogger(LogLevel.info, 300);
 
     private static final Instant PAST_CUTOFF_TIMESTAMP = TimeUtils.convertFromISO8601String("1991-01-01T00:00:00.000Z");
     private static final int FUTURE_CUTOFF_SECONDS = 30 * 60;
