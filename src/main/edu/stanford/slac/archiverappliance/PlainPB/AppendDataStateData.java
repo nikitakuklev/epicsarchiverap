@@ -326,7 +326,7 @@ public class AppendDataStateData {
         } else {
             logger.error("Cannot determine last known timestamp when updating state for PV " + pvName + " and path " + pvPath.toString());
         }
-        this.os = new BufferedOutputStream(Files.newOutputStream(pvPath, StandardOpenOption.CREATE, StandardOpenOption.APPEND));
+        this.os = new BufferedOutputStream(Files.newOutputStream(pvPath, StandardOpenOption.CREATE, StandardOpenOption.APPEND), 65536);
         this.previousFileName = pvPath.getFileName().toString();
     }
 
@@ -347,7 +347,7 @@ public class AppendDataStateData {
                 + " for year " + this.currentEventsYear
                 + " of type " + stream.getDescription().getArchDBRType()
                 + " of PBPayload " + stream.getDescription().getArchDBRType().getPBPayloadType());
-        this.os = new BufferedOutputStream(Files.newOutputStream(pvPath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING));
+        this.os = new BufferedOutputStream(Files.newOutputStream(pvPath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING), 65536);
         byte[] headerBytes = LineEscaper.escapeNewLines(EPICSEvent.PayloadInfo.newBuilder()
                 .setPvname(pvName)
                 .setType(stream.getDescription().getArchDBRType().getPBPayloadType())
