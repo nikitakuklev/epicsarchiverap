@@ -64,12 +64,6 @@ public class EPICS_V3_PV implements PV, ControllingPV, ConnectionListener, Monit
 
     /** Channel name. */
     private final String name;
-    
-    /** Listen to changes in value beyond 'ADEL' archive limit */
-    ARCHIVE(2 | 4),
-    
-    /** Listen to 'ADEL' and 'MDEL' */
-    VALUEANDARCHIVE(1 | 2 | 4),
 
     /**the meta info for this pv*/
     private MetaInfo totalMetaInfo = new MetaInfo();
@@ -120,6 +114,9 @@ public class EPICS_V3_PV implements PV, ControllingPV, ConnectionListener, Monit
 
         /** Listen to changes in value beyond 'ADEL' archive limit */
         ARCHIVE(2 | 4),
+
+        /** Listen to 'ADEL' and 'MDEL' */
+        VALUEANDARCHIVE(1 | 2 | 4),
 
         /** Listen to changes in alarm state */
         ALARM(4),
@@ -455,7 +452,7 @@ public class EPICS_V3_PV implements PV, ControllingPV, ConnectionListener, Monit
                 totalMetaInfo.setStartTime(System.currentTimeMillis());
                 // isnotTimestampDBR
                 if (this.name.endsWith(".RTYP")) {
-                    subscription = channel.addMonitor(MonitorMask.ARCHIVE.getMask(), this);
+                    subscription = channel.addMonitor(MonitorMask.VALUEANDARCHIVE.getMask(), this);
                 } else {
                     if (this.isDBEProperties && dbePropertiesSubscription == null) {
                         logger.debug("Adding a DBE_PROPERTIES monitor for " + this.name);
@@ -473,7 +470,7 @@ public class EPICS_V3_PV implements PV, ControllingPV, ConnectionListener, Monit
                                 });
                     }
                     subscription =
-                            channel.addMonitor(type, channel.getElementCount(), MonitorMask.ARCHIVE.getMask(), this);
+                            channel.addMonitor(type, channel.getElementCount(), MonitorMask.VALUEANDARCHIVE.getMask(), this);
                 }
             } catch (final Exception ex) {
                 logger.error("exception when subscribing pv " + name, ex);
