@@ -30,8 +30,8 @@ import java.nio.file.StandardOpenOption;
  */
 public class LineByteStream implements Closeable {
 	private static final Logger logger = LogManager.getLogger(LineByteStream.class.getName());
-	public static int MAX_LINE_SIZE = 16 * 1024;
-	public static int MAX_ITERATIONS_TO_DETERMINE_LINE = 16 * 1024;
+	public static int MAX_LINE_SIZE = 128 * 1024;
+	public static int MAX_ITERATIONS_TO_DETERMINE_LINE = 128 * 1024;
 	private SeekableByteChannel byteChannel = null;
 	private Path path = null;
 	byte[] buf = null;
