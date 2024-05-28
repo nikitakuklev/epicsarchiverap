@@ -260,6 +260,38 @@ public class DefaultConfigService implements ConfigService {
         configlogger.info("My identity is " + myApplianceInfo.getIdentity() + " and my mgmt URL is "
                 + myApplianceInfo.getMgmtURL());
 
+        // MUST LOAD CONFIG BEFORE STARTING ENGINE CONTEXT
+        try {
+            String archApplPropertiesFileName = System.getProperty(ARCHAPPL_PROPERTIES_FILENAME);
+            if (archApplPropertiesFileName == null) {
+                archApplPropertiesFileName = System.getenv(ARCHAPPL_PROPERTIES_FILENAME);
+            }
+            if (archApplPropertiesFileName == null) {
+                archApplPropertiesFileName = new URL(this.getClass()
+                        .getClassLoader()
+                        .getResource(DEFAULT_ARCHAPPL_PROPERTIES_FILENAME)
+                        .toString())
+                        .getPath();
+                configlogger.info(
+                        "Loading archappl.properties from the webapp classpath " + archApplPropertiesFileName);
+            } else {
+                configlogger.info("Loading archappl.properties using the environment/JVM property from "
+                        + archApplPropertiesFileName);
+            }
+            try (InputStream is = new FileInputStream(archApplPropertiesFileName)) {
+                archapplproperties.load(is);
+                configlogger.info(
+                        "Done loading installation specific properties file from " + archApplPropertiesFileName);
+            } catch (Exception ex) {
+                throw new ConfigException(
+                        "Exception loading installation specific properties file " + archApplPropertiesFileName, ex);
+            }
+        } catch (ConfigException cex) {
+            throw cex;
+        } catch (Exception ex) {
+            configlogger.fatal("Exception loading the appliance properties file", ex);
+        }
+
         switch (contextPath) {
             case "/mgmt":
                 warFile = WAR_FILE.MGMT;
@@ -309,37 +341,6 @@ public class DefaultConfigService implements ConfigService {
                 configlogger.error(
                         "Got an UnknownHostException when trying to determine the hostname. This happens when DNS is not set correctly on this machine (for example, when using VM's. See the documentation for InetAddress.getLocalHost().getCanonicalHostName()");
             }
-        }
-
-        try {
-            String archApplPropertiesFileName = System.getProperty(ARCHAPPL_PROPERTIES_FILENAME);
-            if (archApplPropertiesFileName == null) {
-                archApplPropertiesFileName = System.getenv(ARCHAPPL_PROPERTIES_FILENAME);
-            }
-            if (archApplPropertiesFileName == null) {
-                archApplPropertiesFileName = new URL(this.getClass()
-                                .getClassLoader()
-                                .getResource(DEFAULT_ARCHAPPL_PROPERTIES_FILENAME)
-                                .toString())
-                        .getPath();
-                configlogger.info(
-                        "Loading archappl.properties from the webapp classpath " + archApplPropertiesFileName);
-            } else {
-                configlogger.info("Loading archappl.properties using the environment/JVM property from "
-                        + archApplPropertiesFileName);
-            }
-            try (InputStream is = new FileInputStream(archApplPropertiesFileName)) {
-                archapplproperties.load(is);
-                configlogger.info(
-                        "Done loading installation specific properties file from " + archApplPropertiesFileName);
-            } catch (Exception ex) {
-                throw new ConfigException(
-                        "Exception loading installation specific properties file " + archApplPropertiesFileName, ex);
-            }
-        } catch (ConfigException cex) {
-            throw cex;
-        } catch (Exception ex) {
-            configlogger.fatal("Exception loading the appliance properties file", ex);
         }
 
         String pvName2KeyMappingClass =
