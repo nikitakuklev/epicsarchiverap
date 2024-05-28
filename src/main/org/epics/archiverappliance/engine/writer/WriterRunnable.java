@@ -33,6 +33,13 @@ public class WriterRunnable implements Runnable {
 	private static final Logger logger = LogManager.getLogger(WriterRunnable.class);
 	/** Minimum write period [seconds] */
 	private static final double MIN_WRITE_PERIOD = 1.0;
+
+	private static final double MIN_WRITE_RATIO = 0.5;
+
+	private static final double MAX_WRITE_SKIPS = 5;
+
+	private double writePeriod;
+
     /**the sample buffer hash map*/
 	final private ConcurrentHashMap<String, SampleBuffer> buffers = new ConcurrentHashMap<String, SampleBuffer>();
 
@@ -40,6 +47,9 @@ public class WriterRunnable implements Runnable {
 	private ConfigService configservice = null;
 	/**is running?*/
 	private boolean isRunning=false;
+
+	final private ConcurrentHashMap<String, Integer> skipCounter = new ConcurrentHashMap<>();
+
 /**
  * the constructor
  * @param configservice the configservice used by this WriterRunnable
@@ -47,6 +57,7 @@ public class WriterRunnable implements Runnable {
 	public WriterRunnable(ConfigService configservice) {
 
 		this.configservice = configservice;
+		this.writePeriod = MIN_WRITE_PERIOD;
 	}
 
 	/** Add a channel's buffer that this thread reads 
@@ -109,6 +120,7 @@ public class WriterRunnable implements Runnable {
 		
 			tempwrite_period = MIN_WRITE_PERIOD;
 		}
+		this.writePeriod = tempwrite_period;
 		return tempwrite_period;
 		
 	}
@@ -142,11 +154,10 @@ public class WriterRunnable implements Runnable {
 		String channelNname = buffer.getChannelName();
 		buffer.resetSamples();
 		ArrayListEventStream previousSamples = buffer.getPreviousSamples();
-		
 
 		try (BasicContext basicContext = new BasicContext()) {
 
-			if (previousSamples.size() > 0) {
+			if (!previousSamples.isEmpty()) {
 				ArchiveChannel tempChannel = channelList.get(channelNname);
 				tempChannel.setlastRotateLogsEpochSeconds(System
 						.currentTimeMillis() / 1000);
@@ -170,49 +181,47 @@ public class WriterRunnable implements Runnable {
 		isRunning=true;
 		ConcurrentHashMap<String, ArchiveChannel> channelList = configservice
 				.getEngineContext().getChannelList();
-		
 
-		Iterator<Entry<String, SampleBuffer>> it = buffers.entrySet()
-				.iterator();
+        for (Entry<String, SampleBuffer> entry : buffers.entrySet()) {
+            SampleBuffer buffer = entry.getValue();
+            String channelNname = buffer.getChannelName();
+            int maxsize = buffer.getCapacity();
+            int cursize = buffer.getQueueSize();
+            int counter = skipCounter.getOrDefault(channelNname, 0);
+            float ratio = ((float) cursize) / maxsize;
+            if (ratio < MIN_WRITE_RATIO) {
+                if (counter > MAX_WRITE_SKIPS) {
+                    logger.info("Skip count exceeded for " + channelNname + " but still not enough events - writing anyways");
+                    skipCounter.put(channelNname, 0);
+                } else {
+                    logger.info("Skipping write for " + channelNname + String.format("because only have %d / %d events (%f full)", cursize, maxsize, ratio));
+                    skipCounter.put(channelNname, counter + 1);
+                    continue;
+                }
+            } else if (ratio == 1.0) {
+                logger.warn("Buffer of " + channelNname + " was found full - this means data loss occured");
+            }
 
-		
-		while (it.hasNext())
-		
-		{
-		
-			Entry<String, SampleBuffer> entry = (Entry<String, SampleBuffer>) it
-					.next();
-			SampleBuffer buffer = entry.getValue();
-		
-			String channelNname = buffer.getChannelName();
-			
-			buffer.resetSamples();
-			ArrayListEventStream previousSamples = buffer.getPreviousSamples();
-			try (BasicContext basicContext = new BasicContext()) {
-				if (previousSamples.size() > 0)
-
-				{
-					ArchiveChannel tempChannel = channelList.get(channelNname);
-					tempChannel.aboutToWriteBuffer((DBRTimeEvent)previousSamples.get(previousSamples.size() -1));
-					tempChannel.setlastRotateLogsEpochSeconds(System
-							.currentTimeMillis() / 1000);
-					tempChannel.getWriter().appendData(basicContext,
-							channelNname, previousSamples);
-				}
-			} catch (IOException e) {
-				throw (e);
-			}finally{
-				isRunning=false;
-			}
-
-		}
-		
+            buffer.resetSamples();
+            ArrayListEventStream previousSamples = buffer.getPreviousSamples();
+            try (BasicContext basicContext = new BasicContext()) {
+                if (!previousSamples.isEmpty()) {
+                    ArchiveChannel tempChannel = channelList.get(channelNname);
+                    tempChannel.aboutToWriteBuffer((DBRTimeEvent) previousSamples.get(previousSamples.size() - 1));
+                    tempChannel.setlastRotateLogsEpochSeconds(System
+                            .currentTimeMillis() / 1000);
+                    tempChannel.getWriter().appendData(basicContext,
+                            channelNname, previousSamples);
+                }
+            } catch (IOException e) {
+                throw (e);
+            } finally {
+                isRunning = false;
+            }
+        }
 		isRunning=false;
-		
-		
-
-
 	}
+
 	/**
 	 * flush out the sample buffer to the short term storage before shutting down the engine
 	 * @throws Exception  error occurs during writing the sample buffer to the short term storage
