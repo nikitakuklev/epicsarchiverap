@@ -98,8 +98,10 @@ public class ConsolidatePBFilesForOnePV implements BPLAction {
 
         String ETLConsolidateURL = info.getEtlURL() + "/consolidateDataForPV"
                 + "?pv=" + URLEncoder.encode(pvName, StandardCharsets.UTF_8)
-                + "&storage=" + URLEncoder.encode(storageName, StandardCharsets.UTF_8)
-                + "&date=" + URLEncoder.encode(date, StandardCharsets.UTF_8);
+                + "&storage=" + URLEncoder.encode(storageName, StandardCharsets.UTF_8);
+        if (date != null && !date.isEmpty()) {
+            ETLConsolidateURL += "&date=" + URLEncoder.encode(date, StandardCharsets.UTF_8);
+        }
         logger.info("Consolidating data for PV using URL " + ETLConsolidateURL);
 
         JSONObject pvStatus = GetUrlContent.getURLContentAsJSONObject(ETLConsolidateURL);
