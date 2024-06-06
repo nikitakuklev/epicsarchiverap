@@ -10,7 +10,6 @@
 package org.epics.archiverappliance.engine.writer;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,9 +33,9 @@ public class WriterRunnable implements Runnable {
 	/** Minimum write period [seconds] */
 	private static final double MIN_WRITE_PERIOD = 1.0;
 
-	private static final double MIN_WRITE_RATIO = 0.5;
+	private final int maxWriteSkips;
 
-	private static final double MAX_WRITE_SKIPS = 5;
+	private final double minWriteRatio;
 
 	private double writePeriod;
 
@@ -58,6 +57,12 @@ public class WriterRunnable implements Runnable {
 
 		this.configservice = configservice;
 		this.writePeriod = MIN_WRITE_PERIOD;
+
+		this.minWriteRatio = Double.parseDouble(configservice.getInstallationProperties().getProperty("org.epics.archiverappliance.config.PVTypeInfo.minWriteRatio", "0.7"));
+		logger.info("Minimum buffer fill for writing is " + this.minWriteRatio);
+
+		this.maxWriteSkips = Integer.parseInt(configservice.getInstallationProperties().getProperty("org.epics.archiverappliance.config.PVTypeInfo.maxWriteSkips", "30"));
+		logger.info("Maximum number of skips is " + this.maxWriteSkips);
 	}
 
 	/** Add a channel's buffer that this thread reads 
@@ -131,6 +136,8 @@ public class WriterRunnable implements Runnable {
 	public void run() {
 		try {
 			// final long written = write();
+			// stop miscounting runs
+			if(isRunning) return;
 			long startTime = System.currentTimeMillis();
 			write();
 			long endTime = System.currentTimeMillis();
@@ -185,39 +192,42 @@ public class WriterRunnable implements Runnable {
         for (Entry<String, SampleBuffer> entry : buffers.entrySet()) {
             SampleBuffer buffer = entry.getValue();
             String channelNname = buffer.getChannelName();
+			// TODO: handle when sampling rate changes
             int maxsize = buffer.getCapacity();
             int cursize = buffer.getQueueSize();
             int counter = skipCounter.getOrDefault(channelNname, 0);
-            float ratio = ((float) cursize) / maxsize;
-            if (ratio < MIN_WRITE_RATIO) {
-                if (counter > MAX_WRITE_SKIPS) {
-                    logger.info("Skip count exceeded for " + channelNname + " but still not enough events - writing anyways");
+            double ratio = ((double) cursize) / maxsize;
+            if (ratio < minWriteRatio) {
+                if (counter > maxWriteSkips) {
+                    logger.debug("Skip count exceeded for " + channelNname + String.format(" but only have %d / %d events (%.5f full)  - writing anyways", cursize, maxsize, ratio));
                     skipCounter.put(channelNname, 0);
                 } else {
-                    logger.info("Skipping write for " + channelNname + String.format("because only have %d / %d events (%f full)", cursize, maxsize, ratio));
+                    //logger.debug("Skipping write for " + channelNname + String.format("because only have %d / %d events (%f full)", cursize, maxsize, ratio));
                     skipCounter.put(channelNname, counter + 1);
                     continue;
                 }
-            } else if (ratio == 1.0) {
+            } else if (ratio >= 1.0) {
                 logger.warn("Buffer of " + channelNname + " was found full - this means data loss occured");
             }
 
-            buffer.resetSamples();
-            ArrayListEventStream previousSamples = buffer.getPreviousSamples();
-            try (BasicContext basicContext = new BasicContext()) {
-                if (!previousSamples.isEmpty()) {
-                    ArchiveChannel tempChannel = channelList.get(channelNname);
-                    tempChannel.aboutToWriteBuffer((DBRTimeEvent) previousSamples.get(previousSamples.size() - 1));
-                    tempChannel.setlastRotateLogsEpochSeconds(System
-                            .currentTimeMillis() / 1000);
-                    tempChannel.getWriter().appendData(basicContext,
-                            channelNname, previousSamples);
-                }
-            } catch (IOException e) {
-                throw (e);
-            } finally {
-                isRunning = false;
-            }
+			if (!buffer.getCurrentSamples().isEmpty()) {
+				buffer.resetSamples();
+				ArrayListEventStream previousSamples = buffer.getPreviousSamples();
+				try (BasicContext basicContext = new BasicContext()) {
+					if (!previousSamples.isEmpty()) {
+						ArchiveChannel tempChannel = channelList.get(channelNname);
+						tempChannel.aboutToWriteBuffer((DBRTimeEvent) previousSamples.get(previousSamples.size() - 1));
+						tempChannel.setlastRotateLogsEpochSeconds(System
+								.currentTimeMillis() / 1000);
+						tempChannel.getWriter().appendData(basicContext,
+								channelNname, previousSamples);
+					}
+				} catch (IOException e) {
+					throw (e);
+				} finally {
+					isRunning = false;
+				}
+			}
         }
 		isRunning=false;
 	}

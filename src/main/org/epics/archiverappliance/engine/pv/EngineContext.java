@@ -131,8 +131,9 @@ public class EngineContext {
 	 */
 	public void setSecondsConsumedByWriter(double secondsConsumedByWriter) {
 		countOfWrittingByWriter++;
-		totalTimeConsumedByWriter = totalTimeConsumedByWriter
-				+ secondsConsumedByWriter;
+//		totalTimeConsumedByWriter = totalTimeConsumedByWriter
+//				+ secondsConsumedByWriter;
+		totalTimeConsumedByWriter = secondsConsumedByWriter;
 	}
         /**
 	 * 
@@ -141,7 +142,7 @@ public class EngineContext {
         public double getAverageSecondsConsumedByWriter() {
 		if (countOfWrittingByWriter == 0)
 			return 0;
-		return totalTimeConsumedByWriter / (double) countOfWrittingByWriter;
+		return totalTimeConsumedByWriter;//totalTimeConsumedByWriter / (double) countOfWrittingByWriter;
 	}
 
         /**
