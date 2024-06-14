@@ -179,28 +179,41 @@ public class WriterRunnable implements Runnable {
 		}
 		isRunning=false;
 	}
+
+	private void write() throws Exception {
+		this.write(false);
+	}
 /**
  * write all sample buffers into short term storage
  * @throws Exception error occurs during writing the sample buffer to the short term storage
  */
-	private void write() throws Exception {
+	private void write(boolean force) throws Exception {
 		if(isRunning) return;
 		isRunning=true;
 		ConcurrentHashMap<String, ArchiveChannel> channelList = configservice
 				.getEngineContext().getChannelList();
 
+		long allocatedMemory = (Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory());
+		long presumableFreeMemory = Runtime.getRuntime().maxMemory() - allocatedMemory;
+		double freeMB = presumableFreeMemory / 1.0e6;
+		logger.info(String.format("Starting write cycle: %d buffers and %.2f MB free", buffers.size(), freeMB));
+		int writeCount = 0;
+		long t1 = System.currentTimeMillis();
+
         for (Entry<String, SampleBuffer> entry : buffers.entrySet()) {
             SampleBuffer buffer = entry.getValue();
             String channelNname = buffer.getChannelName();
-			// TODO: handle when sampling rate changes
-            int maxsize = buffer.getCapacity();
+			ArrayListEventStream samples = buffer.getCurrentSamples();
+			// TODO: handle when sampling rate changes - kinda done
+            int maxsize = samples.initialSizeHint; //buffer.getCapacity();
             int cursize = buffer.getQueueSize();
             int counter = skipCounter.getOrDefault(channelNname, 0);
             double ratio = ((double) cursize) / maxsize;
-            if (ratio < minWriteRatio) {
+            if (ratio < minWriteRatio && !force) {
                 if (counter > maxWriteSkips) {
-                    logger.debug("Skip count exceeded for " + channelNname + String.format(" but only have %d / %d events (%.5f full)  - writing anyways", cursize, maxsize, ratio));
-                    skipCounter.put(channelNname, 0);
+					if (ratio > 0) {
+						logger.info("Skip count exceeded for " + channelNname + String.format(" but only have %d / %d events (%.5f full)  - writing anyways", cursize, maxsize, ratio));
+					}
                 } else {
                     //logger.debug("Skipping write for " + channelNname + String.format("because only have %d / %d events (%f full)", cursize, maxsize, ratio));
                     skipCounter.put(channelNname, counter + 1);
@@ -209,8 +222,9 @@ public class WriterRunnable implements Runnable {
             } else if (ratio >= 1.0) {
                 logger.warn("Buffer of " + channelNname + " was found full - this means data loss occured");
             }
+			skipCounter.put(channelNname, 0);
 
-			if (!buffer.getCurrentSamples().isEmpty()) {
+			if (!samples.isEmpty()) {
 				buffer.resetSamples();
 				ArrayListEventStream previousSamples = buffer.getPreviousSamples();
 				try (BasicContext basicContext = new BasicContext()) {
@@ -227,9 +241,12 @@ public class WriterRunnable implements Runnable {
 				} finally {
 					isRunning = false;
 				}
+				writeCount++;
 			}
         }
+		logger.info(String.format("Finished write cycle: %d writes in %d ms", writeCount, System.currentTimeMillis() - t1));
 		isRunning=false;
+
 	}
 
 	/**
@@ -238,7 +255,7 @@ public class WriterRunnable implements Runnable {
 	 */
 	public void flushBuffer() throws Exception {
 		
-			write();
+			write(true);
 	}
 
 }
