@@ -22,9 +22,11 @@ import org.epics.archiverappliance.retrieval.RemotableOverRaw;
 @SuppressWarnings("serial")
 public class ArrayListEventStream extends ArrayList<Event> implements EventStream, RemotableOverRaw {
 	private RemotableEventStreamDesc desc;
+	public int initialSizeHint;
 	
 	public ArrayListEventStream(int initialSize, RemotableEventStreamDesc desc) {
 		super(initialSize);
+		this.initialSizeHint = initialSize;
 		this.desc = desc;
 	}
 

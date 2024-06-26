@@ -198,7 +198,7 @@ public class SampleBuffer {
 		}
 		try {
 			synchronized (this) {
-				int remainSize = capacity - currentSamples.size();
+				int remainSize = currentSamples.initialSizeHint - currentSamples.size();
 
 				if (remainSize < 1) {
 					retval = false;
