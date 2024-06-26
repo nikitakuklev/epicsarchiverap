@@ -60,7 +60,7 @@ public class GetPVStatusAction implements BPLAction {
         } else {
             pvNames = PVsMatchingParameter.getMatchingPVs(req, configService, true, -1);
         }
-        logger.info("Getting the status of pv(s) " + req.getParameter("pv"));
+        logger.info("Getting the status of pv(s) " + req.getParameter("pv") + " -> found " + pvNames.size());
 
         HashMap<String, Map<String, String>> pvStatuses = new LinkedHashMap<>();
         HashMap<String, LinkedList<String>> pvNamesToAskEngineForStatus =

@@ -24,6 +24,7 @@ import org.epics.archiverappliance.etl.StorageMetrics;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -102,7 +103,7 @@ public final class PBThreeTierETLPVLookup {
                                     if (!typeInfo.isPaused()) {
                                         addETLJobs(pvName, typeInfo);
                                     } else {
-                                        logger.info("Skipping adding ETL jobs for paused PV " + pvName);
+                                        logger.debug("Skipping adding ETL jobs for paused PV " + pvName);
                                     }
                                 }
                             }
@@ -191,10 +192,14 @@ public final class PBThreeTierETLPVLookup {
                         // and your changes of running out of space with this setting are quite high.
                         // Needless to say; this is meant for emergencies only.
                         String skipStoreName = System.getenv("ARCHAPPL_SKIP_ETL_FOR_STORE");
-                        if (skipStoreName != null && skipStoreName.equals(((StoragePlugin) etlDest).getName())) {
-                            initialDelay = 3600 * 24 * 365 * 10;
-                            logger.error("Setting ETL for store " + skipStoreName + " for PV " + pvName
-                                    + " to a very distant future");
+                        if (skipStoreName != null) {
+                            String pluginName = ((StoragePlugin) etlDest).getName();
+                            String[] skipStores = skipStoreName.split(";");
+                            if (Arrays.asList(skipStores).contains(pluginName)) {
+                                initialDelay = 3600 * 24 * 365 * 10;
+                                logger.warn("Setting ETL for store " + pluginName + " for PV " + pvName
+                                        + " to a very distant future because it matched env var " + skipStoreName);
+                            }
                         }
                     }
 

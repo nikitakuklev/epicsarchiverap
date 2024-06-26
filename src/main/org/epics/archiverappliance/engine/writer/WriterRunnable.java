@@ -209,17 +209,22 @@ public class WriterRunnable implements Runnable {
             int cursize = buffer.getQueueSize();
             int counter = skipCounter.getOrDefault(channelNname, 0);
             double ratio = ((double) cursize) / maxsize;
-            if (ratio < minWriteRatio && !force) {
-                if (counter > maxWriteSkips) {
-					if (ratio > 0) {
-						logger.info("Skip count exceeded for " + channelNname + String.format(" but only have %d / %d events (%.5f full)  - writing anyways", cursize, maxsize, ratio));
+			if (force) {
+				logger.warn(String.format("Doing a forced write for %s with %d / %d events (%.5f full)", channelNname, cursize, maxsize, ratio));
+			} else {
+				if (ratio < minWriteRatio) {
+					if (counter > maxWriteSkips) {
+						if (ratio > 0) {
+							logger.info(String.format("Skip count exceeded for %s but only have %d / %d events (%.5f full) - writing anyways", channelNname, cursize, maxsize, ratio));
+						}
+					} else {
+						//logger.debug("Skipping write for " + channelNname + String.format("because only have %d / %d events (%f full)", cursize, maxsize, ratio));
+						skipCounter.put(channelNname, counter + 1);
+						continue;
 					}
-                } else {
-                    //logger.debug("Skipping write for " + channelNname + String.format("because only have %d / %d events (%f full)", cursize, maxsize, ratio));
-                    skipCounter.put(channelNname, counter + 1);
-                    continue;
-                }
-            } else if (ratio >= 1.0) {
+				}
+			}
+			if (ratio >= 1.0) {
                 logger.warn("Buffer of " + channelNname + " was found full - this means data loss occured");
             }
 			skipCounter.put(channelNname, 0);
